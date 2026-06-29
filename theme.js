@@ -1,0 +1,2 @@
+export const Colors = { primary: '#E30613', primaryLight: '#FDECEA', secondary: '#1D5FA6', secondaryLight: '#E8F0FB', success: '#00A550', successLight: '#E6F7EE', warning: '#F59E0B', warningLight: '#FFF8E1', danger: '#E30613', white: '#FFFFFF', background: '#F4F6FA', border: '#E5E9F0', text: '#111111', textSecondary: '#4A4A4A', muted: '#9CA3AF', gray: '#E5E7EB', gray50: '#FAFAFA', gray100: '#F5F5F5', gray300: '#E0E0E0' };
+export const card = { backgroundColor: Colors.white, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.border };

@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Superbuket Delivery",
+    "slug": "superbuket-delivery",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.superbuket.delivery" },
+    "android": { "package": "com.superbuket.delivery", "versionCode": 1, "usesCleartextTraffic": true },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Superbucket Delivery to use your location while delivering orders."
+        }
+      ]
+    ]
+  }
+}

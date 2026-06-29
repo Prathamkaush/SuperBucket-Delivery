@@ -1,0 +1,6 @@
+env: load .env
+env: export EXPO_PUBLIC_API_URL
+Starting project at C:\Users\Pratham Kaushik\Desktop\superbucket\delivery-application
+Starting Metro Bundler
+Waiting on http://localhost:8084
+Logs for your project will appear below.
