@@ -21,6 +21,7 @@ export default function RouteScreen({ navigation, route }) {
   const region = useMemo(() => buildRegion(routePoints), [current, shopPoint, customerPoint]);
 
   useEffect(() => {
+    if (!order?.id || order?.status === 'DELIVERED') return undefined;
     let mounted = true;
     (async () => {
       const permission = await Location.requestForegroundPermissionsAsync();
@@ -45,7 +46,7 @@ export default function RouteScreen({ navigation, route }) {
       mounted = false;
       watchRef.current?.remove();
     };
-  }, [order?.id]);
+  }, [order?.id, order?.status]);
 
   const complete = async () => {
     try {
