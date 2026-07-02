@@ -17,8 +17,12 @@ export default function RouteScreen({ navigation, route }) {
 
   const shopPoint = coordinateFrom(order?.shop);
   const customerPoint = coordinateFrom(order?.address);
-  const routePoints = [current, shopPoint, customerPoint].filter(Boolean);
-  const region = useMemo(() => buildRegion(routePoints), [current, shopPoint, customerPoint]);
+  const driverPoint = current || coordinateFrom({
+    latitude: order?.deliveryLatitude,
+    longitude: order?.deliveryLongitude,
+  });
+  const routePoints = [driverPoint, shopPoint, customerPoint].filter(Boolean);
+  const region = useMemo(() => buildRegion(routePoints), [driverPoint, shopPoint, customerPoint]);
 
   useEffect(() => {
     if (!order?.id || order?.status === 'DELIVERED') return undefined;
@@ -31,6 +35,12 @@ export default function RouteScreen({ navigation, route }) {
       if (!mounted) return;
       const point = { latitude: first.coords.latitude, longitude: first.coords.longitude };
       setCurrent(point);
+      setOrder((value) => ({
+        ...value,
+        deliveryLatitude: point.latitude,
+        deliveryLongitude: point.longitude,
+        deliveryLocationUpdatedAt: new Date().toISOString(),
+      }));
       await pushLocation(order?.id, point, user);
       setWatching(true);
       watchRef.current = await Location.watchPositionAsync(
@@ -38,6 +48,12 @@ export default function RouteScreen({ navigation, route }) {
         async (position) => {
           const next = { latitude: position.coords.latitude, longitude: position.coords.longitude };
           setCurrent(next);
+          setOrder((value) => ({
+            ...value,
+            deliveryLatitude: next.latitude,
+            deliveryLongitude: next.longitude,
+            deliveryLocationUpdatedAt: new Date().toISOString(),
+          }));
           await pushLocation(order?.id, next, user);
         },
       );
@@ -79,7 +95,7 @@ export default function RouteScreen({ navigation, route }) {
       <View style={styles.mapWrap}>
         {region ? (
           <MapView style={styles.map} initialRegion={region} region={region}>
-            {current ? <Marker coordinate={current} title="You" pinColor={Colors.secondary} /> : null}
+            {driverPoint ? <Marker coordinate={driverPoint} title="You" pinColor={Colors.secondary} /> : null}
             {shopPoint ? <Marker coordinate={shopPoint} title={order?.shop?.name || 'Pickup'} pinColor={Colors.warning} /> : null}
             {customerPoint ? <Marker coordinate={customerPoint} title={order?.address?.name || 'Drop'} pinColor={Colors.primary} /> : null}
             {routePoints.length >= 2 ? <Polyline coordinates={routePoints} strokeColor={Colors.secondary} strokeWidth={4} /> : null}
@@ -87,7 +103,7 @@ export default function RouteScreen({ navigation, route }) {
         ) : (
           <View style={styles.noMap}>
             <Text style={styles.noMapTitle}>Map needs coordinates</Text>
-            <Text style={styles.noMapText}>Add latitude and longitude to shop and user address to show exact route.</Text>
+            <Text style={styles.noMapText}>Allow GPS, add shop coordinates, and ask customers to save address with current location.</Text>
           </View>
         )}
       </View>
