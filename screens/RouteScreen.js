@@ -19,7 +19,8 @@ export default function RouteScreen({ navigation, route }) {
   const [saving, setSaving] = useState(false);
   const watchRef = useRef(null);
 
-  const shopPoint = coordinateFrom(order?.shop);
+  const pickupShop = resolvePickupShop(order);
+  const shopPoint = coordinateFrom(pickupShop);
   const customerPoint = coordinateFrom(order?.address);
   const driverPoint = current || coordinateFrom({
     latitude: order?.deliveryLatitude,
@@ -110,7 +111,7 @@ export default function RouteScreen({ navigation, route }) {
         {canShowNativeMap ? (
           <NativeMaps.MapView style={styles.map} initialRegion={region} region={region}>
             {driverPoint ? <NativeMaps.Marker coordinate={driverPoint} title="You" pinColor={Colors.secondary} /> : null}
-            {shopPoint ? <NativeMaps.Marker coordinate={shopPoint} title={order?.shop?.name || 'Pickup'} pinColor={Colors.warning} /> : null}
+            {shopPoint ? <NativeMaps.Marker coordinate={shopPoint} title={pickupShop?.name || 'Pickup'} pinColor={Colors.warning} /> : null}
             {customerPoint ? <NativeMaps.Marker coordinate={customerPoint} title={order?.address?.name || 'Drop'} pinColor={Colors.primary} /> : null}
             {routePoints.length >= 2 ? <NativeMaps.Polyline coordinates={routePoints} strokeColor={Colors.secondary} strokeWidth={4} /> : null}
           </NativeMaps.MapView>
@@ -139,7 +140,7 @@ export default function RouteScreen({ navigation, route }) {
         <Text style={styles.title}>Order #{order?.id}</Text>
         <Text style={styles.status}>{order?.status === 'DELIVERED' ? 'Delivered' : 'Ready for delivery'}</Text>
 
-        <Stop label="Pickup" title={order?.shop?.name || 'Shop'} body={shopAddress(order?.shop)} phone={order?.shop?.phone} />
+        <Stop label="Pickup" title={pickupShop?.name || 'Shop'} body={shopAddress(pickupShop)} phone={pickupShop?.phone} />
         <Stop label="Drop" title={order?.address?.name || order?.user?.name || 'Customer'} body={customerAddress(order?.address)} phone={order?.address?.phone || order?.user?.phone} />
 
         <Text style={styles.itemsTitle}>Items</Text>
@@ -231,7 +232,11 @@ function buildRegion(points) {
 
 function shopAddress(shop) {
   if (!shop) return 'Shop address unavailable';
-  return [shop.address, shop.city, shop.state, shop.pincode].filter(Boolean).join(', ');
+  return [shop.address, shop.city, shop.state, shop.pincode].filter(Boolean).join(', ') || 'Shop address unavailable';
+}
+
+function resolvePickupShop(order) {
+  return order?.shop || order?.dispatchedBy?.staffShop || null;
 }
 
 function customerAddress(address) {

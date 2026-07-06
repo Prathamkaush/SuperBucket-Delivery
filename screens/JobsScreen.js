@@ -58,8 +58,8 @@ export default function JobsScreen({ navigation }) {
                 <Text style={styles.orderName}>Order #{order.id}</Text>
                 <Text style={[styles.status, order.status === 'DELIVERED' && styles.done]}>{order.status}</Text>
               </View>
-              <Text style={styles.meta}>Pickup: {order.shop?.name || 'Shop'} {order.dispatchedAt ? `• ${new Date(order.dispatchedAt).toLocaleTimeString()}` : ''}</Text>
-              <Text style={styles.address}>{shopAddress(order.shop)}</Text>
+              <Text style={styles.meta}>Pickup: {resolvePickupShop(order)?.name || 'Shop'} {order.dispatchedAt ? `• ${new Date(order.dispatchedAt).toLocaleTimeString()}` : ''}</Text>
+              <Text style={styles.address}>{shopAddress(resolvePickupShop(order))}</Text>
               <View style={styles.divider} />
               <Text style={styles.meta}>Drop: {order.address?.name || order.user?.name || 'Customer'}</Text>
               <Text style={styles.address}>{customerAddress(order.address)}</Text>
@@ -85,7 +85,11 @@ export default function JobsScreen({ navigation }) {
 
 function shopAddress(shop) {
   if (!shop) return 'Shop address unavailable';
-  return [shop.address, shop.city, shop.state, shop.pincode].filter(Boolean).join(', ');
+  return [shop.address, shop.city, shop.state, shop.pincode].filter(Boolean).join(', ') || 'Shop address unavailable';
+}
+
+function resolvePickupShop(order) {
+  return order?.shop || order?.dispatchedBy?.staffShop || null;
 }
 
 function customerAddress(address) {
