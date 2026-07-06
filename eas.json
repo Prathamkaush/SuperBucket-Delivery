@@ -1,4 +1,15 @@
 {
   "cli": { "version": ">= 20.1.0", "appVersionSource": "local" },
-  "build": { "preview": { "distribution": "internal", "android": { "buildType": "apk" } }, "production": {} }
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://apiv1.freeqr.live",
+        "EXPO_PUBLIC_ENABLE_NATIVE_MAPS": "true",
+        "EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY": "AIzaSyB3vA9vB5kBM4i1wZAXCAyiN3MGvluFwCg"
+      },
+      "android": { "buildType": "apk" }
+    },
+    "production": {}
+  }
 }

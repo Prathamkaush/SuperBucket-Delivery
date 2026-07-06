@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as Location from 'expo-location';
-import MapView, { Marker, Polyline } from 'react-native-maps';
 import { markDelivered, updateDeliveryLocation } from '../services/delivery';
 import { getStoredUser } from '../services/auth';
 import { Colors, card } from '../theme';
+
+const ENABLE_NATIVE_MAPS =
+  process.env.EXPO_PUBLIC_ENABLE_NATIVE_MAPS === 'true' &&
+  Boolean(process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY);
+const NativeMaps = getNativeMaps();
 
 export default function RouteScreen({ navigation, route }) {
   const initialOrder = route.params?.order;
@@ -23,40 +27,45 @@ export default function RouteScreen({ navigation, route }) {
   });
   const routePoints = [driverPoint, shopPoint, customerPoint].filter(Boolean);
   const region = useMemo(() => buildRegion(routePoints), [driverPoint, shopPoint, customerPoint]);
+  const canShowNativeMap = Boolean(NativeMaps && region);
 
   useEffect(() => {
     if (!order?.id || order?.status === 'DELIVERED') return undefined;
     let mounted = true;
     (async () => {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') return;
-      const user = await getStoredUser().catch(() => null);
-      const first = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      if (!mounted) return;
-      const point = { latitude: first.coords.latitude, longitude: first.coords.longitude };
-      setCurrent(point);
-      setOrder((value) => ({
-        ...value,
-        deliveryLatitude: point.latitude,
-        deliveryLongitude: point.longitude,
-        deliveryLocationUpdatedAt: new Date().toISOString(),
-      }));
-      await pushLocation(order?.id, point, user);
-      setWatching(true);
-      watchRef.current = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.Balanced, distanceInterval: 20, timeInterval: 8000 },
-        async (position) => {
-          const next = { latitude: position.coords.latitude, longitude: position.coords.longitude };
-          setCurrent(next);
-          setOrder((value) => ({
-            ...value,
-            deliveryLatitude: next.latitude,
-            deliveryLongitude: next.longitude,
-            deliveryLocationUpdatedAt: new Date().toISOString(),
-          }));
-          await pushLocation(order?.id, next, user);
-        },
-      );
+      try {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status !== 'granted') return;
+        const user = await getStoredUser().catch(() => null);
+        const first = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (!mounted) return;
+        const point = { latitude: first.coords.latitude, longitude: first.coords.longitude };
+        setCurrent(point);
+        setOrder((value) => ({
+          ...value,
+          deliveryLatitude: point.latitude,
+          deliveryLongitude: point.longitude,
+          deliveryLocationUpdatedAt: new Date().toISOString(),
+        }));
+        await pushLocation(order?.id, point, user);
+        setWatching(true);
+        watchRef.current = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.Balanced, distanceInterval: 20, timeInterval: 8000 },
+          async (position) => {
+            const next = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+            setCurrent(next);
+            setOrder((value) => ({
+              ...value,
+              deliveryLatitude: next.latitude,
+              deliveryLongitude: next.longitude,
+              deliveryLocationUpdatedAt: new Date().toISOString(),
+            }));
+            await pushLocation(order?.id, next, user);
+          },
+        );
+      } catch {
+        if (mounted) setWatching(false);
+      }
     })();
     return () => {
       mounted = false;
@@ -86,24 +95,38 @@ export default function RouteScreen({ navigation, route }) {
   const openNavigation = () => {
     const destination = customerPoint
       ? `${customerPoint.latitude},${customerPoint.longitude}`
-      : encodeURIComponent(customerAddress(order?.address));
-    Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`);
+      : customerAddress(order?.address);
+    const encoded = encodeURIComponent(destination);
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${encoded}&travelmode=driving`;
+    Linking.openURL(url)
+      .catch(() => {
+        Alert.alert('Could not open maps', 'Please install or enable Google Maps, then try again.');
+      });
   };
 
   return (
     <View style={styles.page}>
       <View style={styles.mapWrap}>
-        {region ? (
-          <MapView style={styles.map} initialRegion={region} region={region}>
-            {driverPoint ? <Marker coordinate={driverPoint} title="You" pinColor={Colors.secondary} /> : null}
-            {shopPoint ? <Marker coordinate={shopPoint} title={order?.shop?.name || 'Pickup'} pinColor={Colors.warning} /> : null}
-            {customerPoint ? <Marker coordinate={customerPoint} title={order?.address?.name || 'Drop'} pinColor={Colors.primary} /> : null}
-            {routePoints.length >= 2 ? <Polyline coordinates={routePoints} strokeColor={Colors.secondary} strokeWidth={4} /> : null}
-          </MapView>
+        {canShowNativeMap ? (
+          <NativeMaps.MapView style={styles.map} initialRegion={region} region={region}>
+            {driverPoint ? <NativeMaps.Marker coordinate={driverPoint} title="You" pinColor={Colors.secondary} /> : null}
+            {shopPoint ? <NativeMaps.Marker coordinate={shopPoint} title={order?.shop?.name || 'Pickup'} pinColor={Colors.warning} /> : null}
+            {customerPoint ? <NativeMaps.Marker coordinate={customerPoint} title={order?.address?.name || 'Drop'} pinColor={Colors.primary} /> : null}
+            {routePoints.length >= 2 ? <NativeMaps.Polyline coordinates={routePoints} strokeColor={Colors.secondary} strokeWidth={4} /> : null}
+          </NativeMaps.MapView>
         ) : (
           <View style={styles.noMap}>
-            <Text style={styles.noMapTitle}>Map needs coordinates</Text>
-            <Text style={styles.noMapText}>Allow GPS, add shop coordinates, and ask customers to save address with current location.</Text>
+            <Text style={styles.noMapTitle}>{region ? 'Route ready' : 'Map needs coordinates'}</Text>
+            <Text style={styles.noMapText}>
+              {region
+                ? 'Native map is disabled until Google Maps is configured. Use navigation below.'
+                : 'Allow GPS, add shop coordinates, and ask customers to save address with current location.'}
+            </Text>
+            {region ? (
+              <TouchableOpacity style={styles.mapButton} onPress={openNavigation}>
+                <Text style={styles.mapButtonText}>Open Google Maps</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
       </View>
@@ -153,6 +176,20 @@ export default function RouteScreen({ navigation, route }) {
       </ScrollView>
     </View>
   );
+}
+
+function getNativeMaps() {
+  if (!ENABLE_NATIVE_MAPS || Platform.OS === 'web') return null;
+  try {
+    const maps = require('react-native-maps');
+    return {
+      MapView: maps.default,
+      Marker: maps.Marker,
+      Polyline: maps.Polyline,
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function pushLocation(orderId, point, user) {
@@ -220,6 +257,8 @@ const styles = StyleSheet.create({
   noMap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   noMapTitle: { fontWeight: '900', fontSize: 18 },
   noMapText: { color: Colors.muted, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  mapButton: { marginTop: 14, backgroundColor: Colors.secondary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 11 },
+  mapButtonText: { color: Colors.white, fontWeight: '900' },
   sheet: { padding: 18, paddingBottom: 42 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   back: { color: Colors.secondary, fontWeight: '900' },

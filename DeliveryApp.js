@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { getStoredUser, getToken, logout } from './services/auth';
+import { registerForPushNotifications } from './services/notifications';
 import DashboardScreen from './screens/DashboardScreen';
 import JobsScreen from './screens/JobsScreen';
 import EarningsScreen from './screens/EarningsScreen';
@@ -49,7 +50,10 @@ export default function DeliveryApp() {
     (async () => {
       const token = await getToken();
       const user = await getStoredUser().catch(() => null);
-      if (token && user?.role === 'DELIVERY_PARTNER') setInitial('DeliveryTabs');
+      if (token && user?.role === 'DELIVERY_PARTNER') {
+        registerForPushNotifications(token, 'delivery').catch(() => undefined);
+        setInitial('DeliveryTabs');
+      }
       if (token && user?.role !== 'DELIVERY_PARTNER') await logout();
       setReady(true);
     })();
