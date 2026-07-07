@@ -11,3 +11,4 @@ yarn-error.log*
 *.key
 *.mobileprovision
 *.apk
+service-account.json

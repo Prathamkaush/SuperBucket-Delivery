@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "179163907824",
+    "project_id": "superbucket-cdfd1",
+    "storage_bucket": "superbucket-cdfd1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:179163907824:android:a3437d474fc50124316435",
+        "android_client_info": {
+          "package_name": "com.superbuket.delivery"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtRWghhOlQCKmZAOCcYI-XNUR9fPexSdY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:179163907824:android:48c137e407e34771316435",
+        "android_client_info": {
+          "package_name": "com.superbuket.user"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtRWghhOlQCKmZAOCcYI-XNUR9fPexSdY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
