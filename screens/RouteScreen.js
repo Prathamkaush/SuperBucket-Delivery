@@ -17,18 +17,34 @@ export default function RouteScreen({ navigation, route }) {
   const [otp, setOtp] = useState('');
   const [watching, setWatching] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [resolvedCustomerPoint, setResolvedCustomerPoint] = useState(null);
   const watchRef = useRef(null);
 
-  const pickupShop = resolvePickupShop(order);
-  const shopPoint = coordinateFrom(pickupShop);
-  const customerPoint = coordinateFrom(order?.address);
+  const dropAddress = customerAddress(order?.address);
+  const customerPoint = coordinateFrom(order?.address, true) || resolvedCustomerPoint;
   const driverPoint = current || coordinateFrom({
     latitude: order?.deliveryLatitude,
     longitude: order?.deliveryLongitude,
   });
-  const routePoints = [driverPoint, shopPoint, customerPoint].filter(Boolean);
-  const region = useMemo(() => buildRegion(routePoints), [driverPoint, shopPoint, customerPoint]);
+  const routePoints = [driverPoint, customerPoint].filter(Boolean);
+  const region = useMemo(() => buildRegion(routePoints), [driverPoint, customerPoint]);
   const canShowNativeMap = Boolean(NativeMaps && region);
+
+  useEffect(() => {
+    let active = true;
+
+    const resolveMissingPoints = async () => {
+      if (!coordinateFrom(order?.address, true) && order?.address) {
+        const point = await geocodeAddress(dropAddress);
+        if (active) setResolvedCustomerPoint(point);
+      } else if (active) {
+        setResolvedCustomerPoint(null);
+      }
+    };
+
+    resolveMissingPoints().catch(() => undefined);
+    return () => { active = false; };
+  }, [dropAddress]);
 
   useEffect(() => {
     if (!order?.id || order?.status === 'DELIVERED') return undefined;
@@ -38,7 +54,7 @@ export default function RouteScreen({ navigation, route }) {
         const permission = await Location.requestForegroundPermissionsAsync();
         if (permission.status !== 'granted') return;
         const user = await getStoredUser().catch(() => null);
-        const first = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const first = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
         if (!mounted) return;
         const point = { latitude: first.coords.latitude, longitude: first.coords.longitude };
         setCurrent(point);
@@ -51,7 +67,7 @@ export default function RouteScreen({ navigation, route }) {
         await pushLocation(order?.id, point, user);
         setWatching(true);
         watchRef.current = await Location.watchPositionAsync(
-          { accuracy: Location.Accuracy.Balanced, distanceInterval: 20, timeInterval: 8000 },
+          { accuracy: Location.Accuracy.High, distanceInterval: 10, timeInterval: 5000 },
           async (position) => {
             const next = { latitude: position.coords.latitude, longitude: position.coords.longitude };
             setCurrent(next);
@@ -111,7 +127,6 @@ export default function RouteScreen({ navigation, route }) {
         {canShowNativeMap ? (
           <NativeMaps.MapView style={styles.map} initialRegion={region} region={region}>
             {driverPoint ? <NativeMaps.Marker coordinate={driverPoint} title="You" pinColor={Colors.secondary} /> : null}
-            {shopPoint ? <NativeMaps.Marker coordinate={shopPoint} title={pickupShop?.name || 'Pickup'} pinColor={Colors.warning} /> : null}
             {customerPoint ? <NativeMaps.Marker coordinate={customerPoint} title={order?.address?.name || 'Drop'} pinColor={Colors.primary} /> : null}
             {routePoints.length >= 2 ? <NativeMaps.Polyline coordinates={routePoints} strokeColor={Colors.secondary} strokeWidth={4} /> : null}
           </NativeMaps.MapView>
@@ -140,8 +155,7 @@ export default function RouteScreen({ navigation, route }) {
         <Text style={styles.title}>Order #{order?.id}</Text>
         <Text style={styles.status}>{order?.status === 'DELIVERED' ? 'Delivered' : 'Ready for delivery'}</Text>
 
-        <Stop label="Pickup" title={pickupShop?.name || 'Shop'} body={shopAddress(pickupShop)} phone={pickupShop?.phone} />
-        <Stop label="Drop" title={order?.address?.name || order?.user?.name || 'Customer'} body={customerAddress(order?.address)} phone={order?.address?.phone || order?.user?.phone} />
+        <Stop label="Drop" title={order?.address?.name || order?.user?.name || 'Customer'} body={dropAddress} phone={order?.address?.phone || order?.user?.phone} />
 
         <Text style={styles.itemsTitle}>Items</Text>
         {order?.items?.map((item) => (
@@ -207,11 +221,27 @@ async function pushLocation(orderId, point, user) {
   }
 }
 
-function coordinateFrom(value) {
+function coordinateFrom(value, indiaOnly = false) {
   const latitude = Number(value?.latitude ?? value?.lat);
   const longitude = Number(value?.longitude ?? value?.lng);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 || latitude > 90 ||
+    longitude < -180 || longitude > 180 ||
+    (latitude === 0 && longitude === 0)
+  ) return null;
+  // Delivery addresses in this app are Indian (10-digit Indian phone and 6-digit pincode).
+  // Reject stale/default coordinates such as longitude 0 and geocode the written address instead.
+  if (indiaOnly && (latitude < 6 || latitude > 38 || longitude < 68 || longitude > 98)) return null;
   return { latitude, longitude };
+}
+
+async function geocodeAddress(address) {
+  if (!address || address.includes('unavailable')) return null;
+  const results = await Location.geocodeAsync(`${address}, India`);
+  const point = coordinateFrom(results?.[0], true);
+  return point;
 }
 
 function buildRegion(points) {
@@ -228,15 +258,6 @@ function buildRegion(points) {
     latitudeDelta: Math.max(0.01, (maxLat - minLat) * 1.8 || 0.02),
     longitudeDelta: Math.max(0.01, (maxLng - minLng) * 1.8 || 0.02),
   };
-}
-
-function shopAddress(shop) {
-  if (!shop) return 'Shop address unavailable';
-  return [shop.address, shop.city, shop.state, shop.pincode].filter(Boolean).join(', ') || 'Shop address unavailable';
-}
-
-function resolvePickupShop(order) {
-  return order?.shop || order?.dispatchedBy?.staffShop || null;
 }
 
 function customerAddress(address) {
