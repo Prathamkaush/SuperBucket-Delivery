@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { apiRequest } from './api';
+import * as SecureStore from 'expo-secure-store';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -47,3 +48,14 @@ export async function registerForPushNotifications(authToken, app = 'delivery') 
     }),
   });
 }
+
+async function authenticatedRequest(path, options = {}) {
+  const token = await SecureStore.getItemAsync('auth_token');
+  if (!token) throw new Error('Please log in again');
+  return apiRequest(path, { ...options, headers: { ...options.headers, Authorization: `Bearer ${token}` } });
+}
+
+export const getNotifications = () => authenticatedRequest('/notifications/my?page=1&limit=50');
+export const markAllNotificationsRead = () => authenticatedRequest('/notifications/read-all', { method: 'PATCH' });
+export const markNotificationRead = (id) => authenticatedRequest(`/notifications/${id}/read`, { method: 'PATCH' });
+export const deleteNotification = (id) => authenticatedRequest(`/notifications/${id}`, { method: 'DELETE' });

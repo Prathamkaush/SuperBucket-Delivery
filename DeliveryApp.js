@@ -12,11 +12,12 @@ import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import RouteScreen from './screens/RouteScreen';
+import NotificationsScreen from './screens/NotificationsScreen';
 import { Colors } from './theme';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-const icons = { Dashboard: 'D', Deliveries: 'O', Earnings: '₹', Profile: 'P' };
+const icons = { Dashboard: 'D', Deliveries: 'O', Notifications: 'N', Earnings: '₹', Profile: 'P' };
 
 function Tabs() {
   return (
@@ -36,6 +37,7 @@ function Tabs() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Deliveries" component={JobsScreen} />
+      <Tab.Screen name="Notifications" component={NotificationsScreen} />
       <Tab.Screen name="Earnings" component={EarningsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
